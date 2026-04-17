@@ -14,6 +14,7 @@
 
 # Acuratex project specific
 firmware_esp32/build/
+firmware_esp32/managed_components/
 app_windows/**/bin/
 app_windows/**/obj/
 firmware_esp32/.idf/

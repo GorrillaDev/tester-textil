@@ -28,3 +28,16 @@ Guias:
 
 - `MIGRAR_PROYECTO_AQUI.md`
 - `COMO_USAR_EN_CODEX_WEB.md`
+
+## Nota de firmware ESP-IDF
+
+La carpeta `firmware_esp32/managed_components` no se versiona. Se regenera desde:
+
+- `firmware_esp32/main/idf_component.yml`
+
+Si hace falta reconstruir dependencias:
+
+```powershell
+idf.py reconfigure
+idf.py build
+```
