@@ -1,0 +1,18 @@
+Proyecto ACURATEX.
+
+- Firmware: ESP-IDF v6.0 en `control de motores`.
+- App PC: C# WinForms .NET 8 en `control de motores\\AcuratexControlApp`.
+- USB nativo del ESP32-S3: vendor-specific + WinUSB, no COM.
+- Flasheo/debug: UART externo con CH340/FTDI.
+- WiFi: `ACURATEX_NET`, `acuratex1`, IP `192.168.137.2`, puerto `3333`.
+- CAN: 1 Mbps, dos buses seleccionables con un solo TWAI.
+
+Ultimo estado importante:
+- El primer comando USB funcionaba y el segundo fallaba.
+- Se concluyo que el problema mas probable estaba en firmware USB.
+- Ultima correccion aplicada en `control de motores\\main\\main.c`:
+  dentro de `tud_vendor_rx_cb(...)` se agrego `tud_vendor_n_read_flush(APP_USB_VENDOR_ITF);`
+- El firmware ya recompilo bien despues de ese cambio.
+
+Archivo grande para retomar todo:
+- `C:\\Users\\Users\\Desktop\\acuratex final\\RECUERDO_CODEX_WEB.txt`

@@ -1,0 +1,53 @@
+Retoma este proyecto desde cero, pero usando este contexto como base de verdad.
+
+Proyecto:
+- PC Windows con app en C# WinForms .NET 8
+- Firmware para ESP32-S3 con ESP-IDF v6.0
+- Comunicacion principal por USB nativo vendor-specific usando WinUSB
+- Comunicacion alternativa por WiFi TCP
+- Programacion y debug por UART externo con CH340/FTDI
+- CAN a 1 Mbps
+- Dos buses CAN usando un solo TWAI, seleccionando CAN1 o CAN2 por software
+
+Rutas clave:
+- Firmware: C:\Users\Users\Desktop\acuratex final\control de motores
+- main firmware: C:\Users\Users\Desktop\acuratex final\control de motores\main\main.c
+- App C#: C:\Users\Users\Desktop\acuratex final\control de motores\AcuratexControlApp
+- Driver WinUSB: C:\Users\Users\Desktop\acuratex final\control de motores\driver_winusb
+- Referencia Arduino: C:\Users\Users\Desktop\acuratex final\proyectos de referencia\unificado\unificado.ino
+
+Estado actual:
+- La app y el firmware ya existen.
+- El driver WinUSB ya fue montado en esta PC para el USB nativo.
+- El firmware compila.
+- La app compila y publica.
+- El problema tecnico mas reciente fue:
+  el primer comando por USB funciona, el ESP responde, pero el segundo comando falla hasta reconectar el USB.
+
+Ultima correccion ya aplicada:
+- En C:\Users\Users\Desktop\acuratex final\control de motores\main\main.c
+- Dentro de tud_vendor_rx_cb(...)
+- Se agrego:
+
+#if CFG_TUD_VENDOR_RX_BUFSIZE > 0
+    tud_vendor_n_read_flush(APP_USB_VENDOR_ITF);
+#endif
+
+Objetivo inmediato al retomar:
+1. Verificar si esa correccion realmente estabiliza el segundo comando USB
+2. Si no, seguir depurando primero el firmware USB vendor-specific
+3. Solo despues seguir con integracion real de cabezal y motores por CAN
+
+Lo que debes hacer primero:
+- leer README_REANUDAR.md
+- leer RECUERDO_CODEX_WEB.txt
+- inspeccionar control de motores/main/main.c
+- inspeccionar control de motores/AcuratexControlApp/WinUsbControllerTransport.cs
+- continuar desde el punto de depuracion USB, no desde cero
+
+No replantees la arquitectura salvo que encuentres una falla tecnica concreta. La arquitectura elegida es:
+- USB nativo vendor-specific para la app
+- UART externo para servicio
+- app en C#
+- firmware en ESP-IDF
+
