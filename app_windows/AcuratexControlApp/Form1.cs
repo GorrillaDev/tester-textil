@@ -2,11 +2,12 @@ namespace AcuratexControlApp;
 
 public partial class Form1 : Form
 {
-    private IControllerTransport? _transport;
+    private readonly ConnectionController _connection = new();
 
     public Form1()
     {
         InitializeComponent();
+        _connection.LineReceived += OnLineReceived;
         cmbMode.SelectedIndex = 0;
         txtBaud.Text = AcuratexUsbConstants.InterfaceGuidString;
         txtHost.Text = "192.168.137.2";
@@ -37,18 +38,19 @@ public partial class Form1 : Form
                 RefreshUsbDevices();
             }
 
-            _transport?.Dispose();
-            _transport = CreateTransportFromUi();
-            _transport.LineReceived += OnLineReceived;
-
-            await _transport.ConnectAsync(CancellationToken.None);
+            await _connection.ConnectAsync(
+                GetSelectedMode(),
+                cmbPorts.SelectedItem as UsbVendorDeviceInfo,
+                txtHost.Text.Trim(),
+                ParsePortFromUi(),
+                CancellationToken.None);
             AppendLog($"Conectado por {GetSelectedMode()}.");
             UpdateUiState(true);
         } catch (Exception ex) {
             AppendLog($"ERROR connect: {ex.Message}");
             UpdateUiState(false);
         } finally {
-            if (_transport == null || !_transport.IsConnected) {
+            if (!_connection.IsConnected) {
                 btnConnect.Enabled = true;
             }
         }
@@ -66,13 +68,13 @@ public partial class Form1 : Form
             return;
         }
 
-        if (_transport == null || !_transport.IsConnected) {
+        if (!_connection.IsConnected) {
             AppendLog("No hay conexion activa.");
             return;
         }
 
         try {
-            await _transport.SendLineAsync(line, CancellationToken.None);
+            await _connection.SendLineAsync(line, CancellationToken.None);
             AppendLog($">> {line}");
         } catch (Exception ex) {
             AppendLog($"ERROR send: {ex.Message}");
@@ -108,28 +110,6 @@ public partial class Form1 : Form
     private ConnectionMode GetSelectedMode()
     {
         return cmbMode.SelectedIndex == 0 ? ConnectionMode.Usb : ConnectionMode.Wifi;
-    }
-
-    private IControllerTransport CreateTransportFromUi()
-    {
-        if (GetSelectedMode() == ConnectionMode.Usb) {
-            if (cmbPorts.SelectedItem is not UsbVendorDeviceInfo device) {
-                throw new InvalidOperationException("Selecciona un dispositivo USB Acuratex.");
-            }
-
-            return new WinUsbControllerTransport(device.DevicePath);
-        }
-
-        string host = txtHost.Text.Trim();
-        if (string.IsNullOrWhiteSpace(host)) {
-            throw new InvalidOperationException("Host invalido.");
-        }
-
-        if (!int.TryParse(txtPort.Text.Trim(), out int tcpPort) || tcpPort <= 0) {
-            throw new InvalidOperationException("Puerto TCP invalido.");
-        }
-
-        return new TcpControllerTransport(host, tcpPort);
     }
 
     private void RefreshUsbDevices()
@@ -171,31 +151,24 @@ public partial class Form1 : Form
 
     private async Task DisconnectTransportAsync()
     {
-        if (_transport == null) {
+        if (!_connection.IsConnected) {
             UpdateUiState(false);
             return;
         }
 
         try {
-            await _transport.DisconnectAsync();
+            await _connection.DisconnectAsync();
             AppendLog("Conexion cerrada.");
         } catch (Exception ex) {
             AppendLog($"ERROR disconnect: {ex.Message}");
         } finally {
-            _transport.Dispose();
-            _transport = null;
             UpdateUiState(false);
         }
     }
 
     private async Task HandleTransportFaultAsync()
     {
-        if (_transport == null) {
-            UpdateUiState(false);
-            return;
-        }
-
-        if (_transport.IsConnected) {
+        if (_connection.IsConnected) {
             return;
         }
 
@@ -217,6 +190,16 @@ public partial class Form1 : Form
     protected override async void OnFormClosing(FormClosingEventArgs e)
     {
         await DisconnectTransportAsync();
+        _connection.Dispose();
         base.OnFormClosing(e);
+    }
+
+    private int ParsePortFromUi()
+    {
+        if (!int.TryParse(txtPort.Text.Trim(), out int tcpPort) || tcpPort <= 0) {
+            throw new InvalidOperationException("Puerto TCP invalido.");
+        }
+
+        return tcpPort;
     }
 }
