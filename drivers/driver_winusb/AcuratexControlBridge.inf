@@ -1,0 +1,32 @@
+[Version]
+Signature="$Windows NT$"
+Class=USBDevice
+ClassGuid={88BAE032-5A81-49F0-BC3D-A4FF138216D6}
+Provider=%ManufacturerName%
+CatalogFile=AcuratexControlBridge.cat
+DriverVer=04/16/2026,1.0.0.0
+PnpLockdown=1
+
+[Manufacturer]
+%ManufacturerName%=Devices,NTamd64
+
+[Devices.NTamd64]
+%DeviceName%=WinUSB_Install,USB\VID_CAFE&PID_4030
+
+[WinUSB_Install.NT]
+Include=winusb.inf
+Needs=WINUSB.NT
+
+[WinUSB_Install.NT.HW]
+AddReg=DeviceInterfaceGUIDs_AddReg
+
+[DeviceInterfaceGUIDs_AddReg]
+HKR,,DeviceInterfaceGUIDs,0x10000,"{D7761D50-5F1B-4D33-95F2-733B0E5F2EED}"
+
+[WinUSB_Install.NT.Services]
+Include=winusb.inf
+Needs=WINUSB.NT.Services
+
+[Strings]
+ManufacturerName="Acuratex"
+DeviceName="Acuratex Control Bridge"

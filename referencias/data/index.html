@@ -1,0 +1,1228 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ESP32 CAN UI</title>
+
+  <style>
+    :root{
+      --bg:#0b0f17; --panel:#121a2a; --text:#e7ecff; --muted:#94a3b8;
+      --border:#22314b; --on:#22c55e; --off:#334155;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 50% -10%, #16213a 0%, var(--bg) 60%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex; align-items:center; justify-content:center;
+      padding:14px; overflow-x:hidden;
+    }
+    .wrap{
+      width:min(1280px, 100%);
+      background: rgba(18,26,42,.72);
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:14px;
+      box-shadow: 0 20px 70px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+    .top{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;}
+    h1{ font-size:16px; margin:0; letter-spacing:.4px; }
+    .sub{ font-size:12px; color:var(--muted); margin-top:4px; line-height:1.3; }
+    .right{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+    input{
+      background: rgba(15,22,36,.9);
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:9px 10px;
+      border-radius:12px;
+      outline:none;
+      width: 200px;
+      font-size:13px;
+    }
+    button{
+      background: rgba(15,22,36,.9);
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:9px 10px;
+      border-radius:12px;
+      cursor:pointer;
+      font-size:13px;
+      transition:.15s transform, .15s background;
+      white-space:nowrap;
+    }
+    button:hover{ transform: translateY(-1px); background: rgba(22,32,54,.95); }
+
+    .sectionTitle{
+      margin: 10px 0 8px;
+      font-weight:800;
+      font-size:13px;
+      letter-spacing:.6px;
+      color:#dbe6ff;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .badge{
+      font-size:11px;
+      color:var(--muted);
+      border:1px solid rgba(148,163,184,.25);
+      padding:4px 8px;
+      border-radius:999px;
+      background: rgba(15,22,36,.35);
+    }
+
+    .rxBox{
+      margin-top:10px;
+      background: rgba(15,22,36,.65);
+      border:1px solid rgba(148,163,184,.22);
+      border-radius:14px;
+      padding:10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:12px;
+      color:#cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .rxTitle{ color:#dbe6ff; font-weight:900; margin-bottom:4px; }
+    .rxSmall{ color:var(--muted); font-size:11px; margin-top:6px; }
+
+    .testBox{
+      margin-top:10px;
+      background: rgba(15,22,36,.70);
+      border:1px solid rgba(148,163,184,.22);
+      border-radius:14px;
+      padding:10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:12px;
+      color:#cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .testBox.ok{
+      border-color: rgba(34,197,94,.55);
+      box-shadow: 0 0 0 3px rgba(34,197,94,.12) inset;
+    }
+    .testBox.bad{
+      border-color: rgba(239,68,68,.55);
+      box-shadow: 0 0 0 3px rgba(239,68,68,.12) inset;
+    }
+
+    .cmdRow{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+    .cmdRow input{ width:min(520px, 100%); }
+
+    .traceBox{
+      margin-top:10px;
+      background: rgba(15,22,36,.65);
+      border:1px solid rgba(148,163,184,.22);
+      border-radius:14px;
+      padding:10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:12px;
+      color:#cbd5e1;
+    }
+    .traceTitle{
+      color:#dbe6ff;
+      font-weight:900;
+      margin-bottom:6px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .traceList{ display:flex; flex-direction:column; gap:6px; }
+    .traceItem{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      line-height:1.25;
+      border-bottom:1px dashed rgba(148,163,184,.18);
+      padding-bottom:6px;
+    }
+    .traceItem:last-child{ border-bottom:none; padding-bottom:0; }
+    .traceTime{ color:var(--muted); min-width:78px; }
+    .traceDir{ font-weight:900; min-width:34px; }
+    .traceDir.tx{ color:#93c5fd; }
+    .traceDir.rx{ color:#86efac; }
+    .traceDir.sys{ color:#fbbf24; }
+    .traceMsg{ white-space:pre-wrap; word-break:break-word; flex:1; }
+
+    .rowMotors{
+      display:grid;
+      gap:10px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      align-items:start;
+      width:100%;
+      margin-top:8px;
+    }
+    .mcard{
+      background: rgba(15,22,36,.55);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-width: 260px;
+    }
+    .mhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+    .mtitle{font-weight:900;font-size:12px;letter-spacing:.6px;color:#dbe6ff;}
+    .msub{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:11px;color:var(--muted); line-height:1.25;}
+    .posBtns{display:flex;gap:8px;flex-wrap:wrap;}
+    .posBtn{
+      padding:7px 10px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(51,65,85,.45);
+      color:var(--text);
+      cursor:pointer;
+      font-weight:900;
+      font-size:12px;
+      transition:.12s transform, .12s box-shadow, .12s background;
+      user-select:none;
+    }
+    .posBtn:hover{ transform: translateY(-1px); }
+    .posBtn.on{
+      background: var(--on);
+      border-color: rgba(34,197,94,.9);
+      box-shadow: 0 0 0 3px rgba(34,197,94,.25) inset, 0 8px 22px rgba(34,197,94,.18);
+      color:#05210f;
+    }
+    .sliderWrap{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 10px;
+      border-radius:14px;
+      border:1px solid rgba(148,163,184,.18);
+      background: rgba(15,22,36,.35);
+    }
+    .sliderWrap input[type="range"]{
+      width:100%;
+      padding:0;
+      border:none;
+      background: transparent;
+      height: 22px;
+    }
+    .sval{
+      min-width: 140px;
+      text-align:right;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .runRow{display:flex;gap:8px;flex-wrap:wrap;}
+
+    .rowJ{
+      display:grid;
+      gap:10px;
+      justify-content:center;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      align-items:start;
+      width:100%;
+    }
+    .J{
+      background: rgba(15,22,36,.55);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:10px 8px 10px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+      min-width: 120px;
+    }
+    .Jhead{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+    .Jtitle{font-weight:800;font-size:12px;letter-spacing:.6px;color:#dbe6ff;}
+    .Jhex{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:11px;color:var(--muted);}
+    .Jbtns{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+    .miniBtn{padding:6px 8px;border-radius:10px;font-size:11px;}
+    .miniBtn.run{ border-color: rgba(34,197,94,.35); }
+    .miniBtn.stop{ border-color: rgba(239,68,68,.35); }
+
+    .col{display:flex;flex-direction:column;gap:7px;align-items:center;}
+    .cell{
+      width:44px;height:34px;border-radius:12px;border:1px solid var(--border);
+      background: rgba(51,65,85,.45);
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;user-select:none;
+      transition: .12s transform, .12s box-shadow, .12s background;
+    }
+    .cell:hover{ transform: translateY(-1px); }
+    .cell.on{
+      background: var(--on);
+      border-color: rgba(34,197,94,.9);
+      box-shadow: 0 0 0 3px rgba(34,197,94,.25) inset, 0 8px 22px rgba(34,197,94,.18);
+    }
+    .cell.on .n{ color:#05210f; }
+    .n{ font-weight:900; font-size:12px; letter-spacing:.4px; color:#dbe6ff; }
+
+    .rowBlocks{
+      display:grid;
+      gap:10px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      align-items:start;
+      width:100%;
+      margin-top:8px;
+    }
+    .blk{
+      background: rgba(15,22,36,.55);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-width: 240px;
+    }
+    .blkHead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+    .blkTitle{font-weight:900;font-size:12px;letter-spacing:.6px;color:#dbe6ff;}
+    .blkSub{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:11px;color:var(--muted);}
+    .gridPins{display:grid;grid-template-columns: repeat(4, 1fr);gap:8px;}
+    .pinBtn{
+      height:40px;border-radius:12px;border:1px solid var(--border);
+      background: rgba(51,65,85,.45);
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;user-select:none;font-weight:900;font-size:12px;
+      transition:.12s transform, .12s box-shadow, .12s background;
+    }
+    .pinBtn:hover{ transform: translateY(-1px); }
+    .pinBtn.on{
+      background: var(--on);
+      border-color: rgba(34,197,94,.9);
+      box-shadow: 0 0 0 3px rgba(34,197,94,.25) inset, 0 8px 22px rgba(34,197,94,.18);
+      color:#05210f;
+    }
+    .blkActions{display:flex;gap:8px;flex-wrap:wrap;}
+    .blkActions button{padding:8px 10px;font-size:12px;border-radius:12px;}
+
+    .log{
+      margin-top:10px;
+      background: rgba(15,22,36,.65);
+      border:1px dashed rgba(148,163,184,.25);
+      border-radius:14px;
+      padding:10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:12px;
+      color:#cbd5e1;
+      min-height: 44px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .hint{margin-top:6px;font-size:12px;color:var(--muted);text-align:center;}
+    code{ color:#cbd5e1; }
+
+    /* ===== TOAST POPUP ===== */
+    .toastWrap{
+      position:fixed;
+      top:14px;
+      right:14px;
+      z-index:9999;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      pointer-events:none;
+    }
+    .toast{
+      pointer-events:auto;
+      min-width: 280px;
+      max-width: min(520px, calc(100vw - 28px));
+      background: rgba(15,22,36,.92);
+      border:1px solid rgba(148,163,184,.28);
+      border-radius:14px;
+      padding:10px 12px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.45);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color:#e5e7eb;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .toast.ok{ border-color: rgba(34,197,94,.55); }
+    .toast.bad{ border-color: rgba(239,68,68,.55); }
+    .toastHead{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:6px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-weight:900;
+      font-size:12px;
+      color:#dbe6ff;
+    }
+    .toastClose{
+      border:1px solid rgba(148,163,184,.25);
+      background: rgba(15,22,36,.35);
+      color:#cbd5e1;
+      border-radius:10px;
+      padding:4px 8px;
+      cursor:pointer;
+      font-weight:900;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="toastWrap" id="toastWrap"></div>
+
+  <div class="wrap">
+    <div class="top">
+      <div style="flex:1;min-width:300px;">
+        <h1>ESP32 CAN UI — DEN + SIC + J + Yarn + Stitch</h1>
+        <div class="sub">
+          J’s: invertido (<b>bit=0 ON</b>). Yarn/Stitch: directo (<b>00 OFF</b>, <b>01 ON</b>).<br/>
+          RX se muestra arriba y el TRACE guarda los últimos 10 TX/RX con hora.
+        </div>
+
+        <div class="rxBox" id="rxBox">
+          <div class="rxTitle">RX (placa responde)</div>
+          <div id="rxLine">Esperando...</div>
+          <div class="rxSmall">Endpoint: <code>/rx</code> (solo actualiza si llega algo nuevo)</div>
+        </div>
+
+        <div class="testBox" id="testBox">
+          <div class="rxTitle">TESTEO (resultado)</div>
+          <div id="testLine">Esperando /status...</div>
+          <div class="rxSmall">Endpoint: <code>/status</code> (muestra interpretación: OK / FALTA / ERROR)</div>
+        </div>
+
+        <div class="cmdRow">
+          <input id="rawLine" placeholder='Enviar línea CAN (ej: 320 07   |   370 FD 06 11 00)' />
+          <button id="btnSendRaw">SEND</button>
+
+          <input id="rawDo" placeholder='Enviar DO (ej: init, start, j_run_1)' style="width:260px;" />
+          <button id="btnDoRaw">DO</button>
+
+          <button id="btnTesteo">TESTEO</button>
+        </div>
+
+        <div class="traceBox" id="traceBox">
+          <div class="traceTitle">
+            <span>TRACE (últimos 10) — TX/RX + hora</span>
+            <button id="btnTraceClear" class="miniBtn">Clear</button>
+          </div>
+          <div class="traceList" id="traceList"></div>
+        </div>
+      </div>
+
+      <div class="right">
+        <input id="ip" value="" placeholder="(vacío = usar el host actual)" />
+        <button id="btnInit">INIT</button>
+        <button id="btnAllOff">OFF ALL</button>
+        <button id="btnAllOn">ON ALL</button>
+        <button id="btnStatus">STATUS</button>
+
+        <button id="btnRunAllJ">RUN ALL (J)</button>
+        <button id="btnStopAllJ">STOP ALL (J)</button>
+
+        <button id="btnRunAllY">RUN ALL (YARN)</button>
+        <button id="btnStopAllY">STOP ALL (YARN)</button>
+
+        <button id="btnRunAllS">RUN ALL (STITCH)</button>
+        <button id="btnStopAllS">STOP ALL (STITCH)</button>
+      </div>
+    </div>
+
+    <div class="sectionTitle">
+      DEN <span class="badge">DEN1..DEN8: 320 1C motor LSB MSB · POS + slider · RUN 80ms · RUN1 300ms</span>
+    </div>
+    <div class="rowMotors" id="rowDEN"></div>
+
+    <div class="sectionTitle" style="margin-top:14px;">
+      SIC <span class="badge">SIC1..SIC2: 320 1C motor LSB MSB · POS1/2/3 · RUN 300ms</span>
+    </div>
+    <div class="rowMotors" id="rowSIC"></div>
+
+    <div class="sectionTitle" style="margin-top:14px;">
+      J1..J8 <span class="badge">send: 320 1D 0x XX</span>
+    </div>
+    <div class="rowJ" id="rowJ"></div>
+
+    <div class="sectionTitle" style="margin-top:14px;">
+      Yarn <span class="badge">send: 320 1E .. .. (00 OFF / 01 ON)</span>
+    </div>
+    <div class="rowBlocks" id="rowYarn"></div>
+
+    <div class="sectionTitle" style="margin-top:14px;">
+      Stitch <span class="badge">solo 4 motores por stitch</span>
+    </div>
+    <div class="rowBlocks" id="rowStitch"></div>
+
+    <div class="log" id="log">Listo.</div>
+    <div class="hint">Último: <code id="dst">/send?line=...</code></div>
+  </div>
+
+<script>
+  function normalizeBase(v){
+    v = (v || "").trim();
+    if (!v) return location.origin;
+    if (!/^https?:\/\//i.test(v)) v = "http://" + v; // ✅ clave: si escribes 192.168.4.1
+    return v.replace(/\/+$/,'');
+  }
+  function baseUrl(){
+    return normalizeBase(document.getElementById('ip').value);
+  }
+
+  function log(msg){ document.getElementById('log').textContent = msg; }
+
+  // ===== TOAST =====
+  function toast(msg, kind="sys", ms=4500){
+    const wrap = document.getElementById("toastWrap");
+    if (!wrap) return;
+
+    const el = document.createElement("div");
+    el.className = "toast " + (kind === "ok" ? "ok" : kind === "bad" ? "bad" : "");
+    el.innerHTML = `
+      <div class="toastHead">
+        <div>${kind === "bad" ? "ALERTA" : kind === "ok" ? "OK" : "INFO"}</div>
+        <button class="toastClose">X</button>
+      </div>
+      <div>${String(msg || "")}</div>
+    `;
+    el.querySelector(".toastClose").onclick = ()=> el.remove();
+    wrap.appendChild(el);
+
+    setTimeout(()=>{ try{ el.remove(); }catch(e){} }, ms);
+  }
+
+  // ===== TRACE =====
+  const TRACE_MAX = 10;
+  let trace = [];
+  function nowTimeStr(){
+    return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+  function traceAdd(dir, msg){
+    trace.push({ t: nowTimeStr(), dir, msg: String(msg || '') });
+    if (trace.length > TRACE_MAX) trace = trace.slice(trace.length - TRACE_MAX);
+    traceRender();
+  }
+  function traceRender(){
+    const list = document.getElementById('traceList');
+    if (!list) return;
+    list.innerHTML = trace.map(e => `
+      <div class="traceItem">
+        <div class="traceTime">${e.t}</div>
+        <div class="traceDir ${e.dir.toLowerCase()}">${e.dir}</div>
+        <div class="traceMsg">${escapeHtml(e.msg)}</div>
+      </div>
+    `).join('');
+  }
+
+  async function apiSendLine(line){
+    traceAdd('TX', line);
+    document.getElementById('dst').textContent = `/send?line=${line}`;
+    const url = `${baseUrl()}/send?line=${encodeURIComponent(line)}`;
+    try{
+      const r = await fetch(url, { cache:"no-store" });
+      const t = await r.text();
+      log(`${r.ok ? 'OK' : 'ERR'} -> ${line}\nESP: ${t}`);
+      return r.ok;
+    }catch(e){
+      log(`FALLO fetch: ${e}`);
+      return false;
+    }
+  }
+
+  async function apiCmdDo(cmd){
+    traceAdd('TX', `DO ${cmd}`);
+    const url = `${baseUrl()}/cmd?do=${encodeURIComponent(cmd)}`;
+    try{
+      const r = await fetch(url, { cache:"no-store" });
+      const t = await r.text();
+      log(`${r.ok ? 'OK' : 'ERR'} -> /cmd?do=${cmd}\nESP: ${t}`);
+      return r.ok;
+    }catch(e){
+      log(`FALLO /cmd: ${e}`);
+      return false;
+    }
+  }
+
+  // ==========================
+  // ✅ TESTEO STATUS
+  // ==========================
+  let lastTestSig = "";
+  function classifyTest(msg){
+    msg = String(msg || "");
+    if (/ok|pass|todo\s*bien/i.test(msg)) return "ok";
+    if (/error|falta|timeout|sin\s*respuesta/i.test(msg)) return "bad";
+    return "";
+  }
+
+  function updateTestBox(j){
+    const box = document.getElementById("testBox");
+    const line = document.getElementById("testLine");
+    if (!box || !line || !j) return;
+
+    const msg = String(j.test_result || "");
+    const pretty =
+      `state=${j.test_state}  armed=${j.test_armed}  tries=${j.test_tries}  last=${j.test_last}  age=${j.test_age_ms}ms\n` +
+      `${msg}`;
+
+    line.textContent = pretty;
+
+    box.classList.remove("ok","bad");
+    const k = classifyTest(msg);
+    if (k) box.classList.add(k);
+
+    // firma para detectar cambio
+    const sig = (j.test_seq != null)
+      ? String(j.test_seq)
+      : `${j.test_state}|${j.test_armed}|${j.test_tries}|${j.test_last}|${msg}`;
+
+    if (sig !== lastTestSig){
+      lastTestSig = sig;
+      if (msg){
+        traceAdd("SYS", `TESTEO => ${msg}`);
+        if (k === "bad") toast(msg, "bad", 6000);
+        else if (k === "ok") toast(msg, "ok", 3000);
+      }
+    }
+  }
+
+  async function pollStatus(){
+    try{
+      const r = await fetch(`${baseUrl()}/status`, { cache:"no-store" });
+      const txt = await r.text();
+
+      // parse robusto (si a veces te devuelve texto raro)
+      let j = null;
+      try{ j = JSON.parse(txt); }
+      catch(e){
+        // si no parsea, igual lo muestro para debug
+        document.getElementById("testLine").textContent =
+          "ERROR: /status no devolvió JSON válido.\n\n" + txt;
+        traceAdd("SYS", "ERROR parse JSON en /status");
+        return;
+      }
+
+      updateTestBox(j);
+    }catch(e){
+      // mostrar fallo visible en testBox
+      const line = document.getElementById("testLine");
+      if (line) line.textContent = `ERROR: no responde /status\n${e}`;
+    }
+  }
+  setInterval(pollStatus, 350);
+  pollStatus();
+
+  // RX polling
+  let lastRxCount = -1;
+  async function pollRx(){
+    try{
+      const r = await fetch(`${baseUrl()}/rx`, { cache:"no-store" });
+      if(!r.ok) return;
+      const j = await r.json();
+      if (typeof j.count === "number" && j.count !== lastRxCount){
+        lastRxCount = j.count;
+        const pretty =
+          `count=${j.count}  age=${j.age_ms}ms\n` +
+          `ID=0x${j.id}  DLC=${j.dlc}  ${j.rtr ? "RTR" : "DAT"}\n` +
+          `DATA: ${j.data || ""}`;
+        document.getElementById("rxLine").textContent = pretty;
+        traceAdd('RX', `ID=0x${j.id} DLC=${j.dlc} ${j.rtr ? "RTR" : "DAT"}  DATA: ${j.data || ""}`);
+      }
+    }catch(e){}
+  }
+  setInterval(pollRx, 100);
+  pollRx();
+
+  // CMD box events
+  document.getElementById('btnSendRaw').addEventListener('click', async ()=>{
+    const v = document.getElementById('rawLine').value.trim();
+    if (!v) return;
+    await apiSendLine(v);
+  });
+  document.getElementById('btnDoRaw').addEventListener('click', async ()=>{
+    const v = document.getElementById('rawDo').value.trim();
+    if (!v) return;
+    await apiCmdDo(v);
+  });
+  document.getElementById('rawLine').addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter'){ e.preventDefault(); document.getElementById('btnSendRaw').click(); }
+  });
+  document.getElementById('rawDo').addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter'){ e.preventDefault(); document.getElementById('btnDoRaw').click(); }
+  });
+  document.getElementById('btnTraceClear').addEventListener('click', ()=>{
+    trace = [];
+    traceRender();
+  });
+
+  document.getElementById('btnTesteo').addEventListener('click', async ()=>{
+    await apiCmdDo('testeo');
+    setTimeout(pollStatus, 120);
+    setTimeout(pollStatus, 350);
+    setTimeout(pollStatus, 800);
+  });
+
+  function hex2(v){ return (v & 0xFF).toString(16).toUpperCase().padStart(2,'0'); }
+  function hex4(v){ return (v & 0xFFFF).toString(16).toUpperCase().padStart(4,'0'); }
+
+  // =========================================
+  // ============== DEN (320 1C) ==============
+  // =========================================
+  function line1C(motorIdx0to7, pos16){
+    const lo = pos16 & 0xFF;
+    const hi = (pos16 >> 8) & 0xFF;
+    const mot = motorIdx0to7 & 0xFF;
+    return `320 1C ${hex2(mot)} ${hex2(lo)} ${hex2(hi)}`;
+  }
+
+  const DEN_POS = [0x0000, 0x00A2, 0x0145, 0x01E7, 0x028A];
+  const DEN_MAX = 0x028A;
+  const DEN_RUN_SEQ_IDX  = [1,3,5,2,4];
+  const DEN_RUN_MS       = 80;
+  const DEN_RUN1_SEQ_IDX = [1,3,5];
+  const DEN_RUN1_MS      = 300;
+
+  const denRunTimer  = new Array(8).fill(null);
+  const denRun1Timer = new Array(8).fill(null);
+  const denRunStep   = new Array(8).fill(0);
+  const denRun1Step  = new Array(8).fill(0);
+  const denBusy      = new Array(8).fill(false);
+
+  function denStopAllRuns(m){
+    if (denRunTimer[m]) { clearInterval(denRunTimer[m]); denRunTimer[m]=null; }
+    if (denRun1Timer[m]){ clearInterval(denRun1Timer[m]); denRun1Timer[m]=null; }
+    denBusy[m]=false;
+  }
+
+  function setDenUI(card, pos16, posIdx1to5){
+    const slider = card.querySelector('[data-slider="1"]');
+    const sval = card.querySelector('[data-sval="1"]');
+    const btns = Array.from(card.querySelectorAll('.posBtn'));
+    slider.value = String(pos16);
+    sval.textContent = `${pos16} (0x${hex4(pos16)})`;
+    btns.forEach(b => b.classList.remove('on'));
+    if (posIdx1to5>=1 && posIdx1to5<=5){
+      const b = card.querySelector(`.posBtn[data-pos="${posIdx1to5}"]`);
+      if (b) b.classList.add('on');
+    }
+  }
+
+  async function denSendPos(m, card, pos16, posIdx=0){
+    setDenUI(card, pos16, posIdx);
+    await apiSendLine(line1C(m, pos16));
+  }
+
+  function denRunStart(m, card){
+    if (denRunTimer[m]) return;
+    if (denRun1Timer[m]) { clearInterval(denRun1Timer[m]); denRun1Timer[m]=null; }
+    denRunStep[m]=0;
+    denRunTimer[m] = setInterval(async ()=>{
+      if (denBusy[m]) return;
+      denBusy[m]=true;
+      try{
+        const idx = DEN_RUN_SEQ_IDX[denRunStep[m] % DEN_RUN_SEQ_IDX.length];
+        await denSendPos(m, card, DEN_POS[idx-1], idx);
+        denRunStep[m]++;
+      } finally {
+        denBusy[m]=false;
+      }
+    }, DEN_RUN_MS);
+  }
+
+  function denRunStop(m){
+    if (denRunTimer[m]) { clearInterval(denRunTimer[m]); denRunTimer[m]=null; }
+    denBusy[m]=false;
+  }
+
+  function denRun1Start(m, card){
+    if (denRun1Timer[m]) return;
+    if (denRunTimer[m]) { clearInterval(denRunTimer[m]); denRunTimer[m]=null; }
+    denRun1Step[m]=0;
+    denRun1Timer[m] = setInterval(async ()=>{
+      if (denBusy[m]) return;
+      denBusy[m]=true;
+      try{
+        const idx = DEN_RUN1_SEQ_IDX[denRun1Step[m] % DEN_RUN1_SEQ_IDX.length];
+        await denSendPos(m, card, DEN_POS[idx-1], idx);
+        denRun1Step[m]++;
+      } finally {
+        denBusy[m]=false;
+      }
+    }, DEN_RUN1_MS);
+  }
+
+  function denRun1Stop(m){
+    if (denRun1Timer[m]) { clearInterval(denRun1Timer[m]); denRun1Timer[m]=null; }
+    denBusy[m]=false;
+  }
+
+  function renderDEN(){
+    const row = document.getElementById('rowDEN');
+    row.innerHTML = '';
+    for(let motor=0; motor<8; motor++){
+      const card = document.createElement('div');
+      card.className = 'mcard';
+      card.innerHTML = `
+        <div class="mhead">
+          <div class="mtitle">DEN ${motor+1}</div>
+          <div class="msub">320 1C ${hex2(motor)} LSB MSB</div>
+        </div>
+        <div class="runRow">
+          <button class="miniBtn run"  data-act="run">RUN</button>
+          <button class="miniBtn stop" data-act="stop">STOP</button>
+          <button class="miniBtn run"  data-act="run1">RUN1</button>
+          <button class="miniBtn stop" data-act="stop1">STOP1</button>
+        </div>
+        <div class="posBtns">
+          ${Array.from({length:5},(_,k)=>`<div class="posBtn" data-pos="${k+1}">POS ${k+1}</div>`).join('')}
+        </div>
+        <div class="sliderWrap">
+          <input type="range" min="0" max="${DEN_MAX}" value="0" step="1" data-slider="1" />
+          <div class="sval" data-sval="1">0 (0x0000)</div>
+        </div>
+      `;
+
+      card.querySelector('[data-act="run"]').addEventListener('click', ()=> denRunStart(motor, card));
+      card.querySelector('[data-act="stop"]').addEventListener('click', ()=> denRunStop(motor));
+      card.querySelector('[data-act="run1"]').addEventListener('click', ()=> denRun1Start(motor, card));
+      card.querySelector('[data-act="stop1"]').addEventListener('click', ()=> denRun1Stop(motor));
+
+      const btns = Array.from(card.querySelectorAll('.posBtn'));
+      btns.forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const posIdx = parseInt(btn.dataset.pos,10);
+          denStopAllRuns(motor);
+          await denSendPos(motor, card, DEN_POS[posIdx-1], posIdx);
+        });
+      });
+
+      const slider = card.querySelector('[data-slider="1"]');
+      const sval = card.querySelector('[data-sval="1"]');
+      slider.addEventListener('input', ()=>{
+        const v = parseInt(slider.value,10)||0;
+        sval.textContent = `${v} (0x${hex4(v)})`;
+      });
+      slider.addEventListener('change', async ()=>{
+        denStopAllRuns(motor);
+        const v = parseInt(slider.value,10)||0;
+        await denSendPos(motor, card, Math.max(0, Math.min(DEN_MAX, v)), 0);
+      });
+
+      setDenUI(card, 0, 1);
+      row.appendChild(card);
+    }
+  }
+
+  // =========================================
+  // ============== SIC (320 1C) ==============
+  // =========================================
+  const SIC_MOTOR_IDX = [0x08, 0x09];
+  const SIC_POS = [0x0000, 0x0176, 0x02EE];
+  const SIC_MAX = 0x02EE;
+  const SIC_RUN_SEQ_IDX = [1,2,3];
+  const SIC_RUN_MS = 300;
+
+  const sicRunTimer = new Array(2).fill(null);
+  const sicRunStep  = new Array(2).fill(0);
+  const sicBusy      = new Array(2).fill(false);
+
+  function sicStopRun(i){
+    if (sicRunTimer[i]) { clearInterval(sicRunTimer[i]); sicRunTimer[i]=null; }
+    sicBusy[i]=false;
+  }
+
+  function setSicUI(card, pos16, posIdx1to3){
+    const slider = card.querySelector('[data-slider="1"]');
+    const sval = card.querySelector('[data-sval="1"]');
+    const btns = Array.from(card.querySelectorAll('.posBtn'));
+    slider.value = String(pos16);
+    sval.textContent = `${pos16} (0x${hex4(pos16)})`;
+    btns.forEach(b => b.classList.remove('on'));
+    if (posIdx1to3>=1 && posIdx1to3<=3){
+      const b = card.querySelector(`.posBtn[data-pos="${posIdx1to3}"]`);
+      if (b) b.classList.add('on');
+    }
+  }
+
+  async function sicSendPos(i, card, pos16, posIdx=0){
+    setSicUI(card, pos16, posIdx);
+    const motor = SIC_MOTOR_IDX[i] & 0xFF;
+    await apiSendLine(line1C(motor, pos16));
+  }
+
+  function sicRunStart(i, card){
+    if (sicRunTimer[i]) return;
+    sicRunStep[i]=0;
+    sicRunTimer[i] = setInterval(async ()=>{
+      if (sicBusy[i]) return;
+      sicBusy[i]=true;
+      try{
+        const idx = SIC_RUN_SEQ_IDX[sicRunStep[i] % SIC_RUN_SEQ_IDX.length];
+        await sicSendPos(i, card, SIC_POS[idx-1], idx);
+        sicRunStep[i]++;
+      } finally {
+        sicBusy[i]=false;
+      }
+    }, SIC_RUN_MS);
+  }
+
+  function renderSIC(){
+    const row = document.getElementById('rowSIC');
+    row.innerHTML = '';
+    for(let i=0;i<2;i++){
+      const card = document.createElement('div');
+      card.className = 'mcard';
+      card.innerHTML = `
+        <div class="mhead">
+          <div class="mtitle">SIC ${i+1}</div>
+          <div class="msub">320 1C ${hex2(SIC_MOTOR_IDX[i])} LSB MSB</div>
+        </div>
+        <div class="runRow">
+          <button class="miniBtn run"  data-act="run">RUN</button>
+          <button class="miniBtn stop" data-act="stop">STOP</button>
+        </div>
+        <div class="posBtns">
+          ${Array.from({length:3},(_,k)=>`<div class="posBtn" data-pos="${k+1}">POS ${k+1}</div>`).join('')}
+        </div>
+        <div class="sliderWrap">
+          <input type="range" min="0" max="${SIC_MAX}" value="0" step="1" data-slider="1" />
+          <div class="sval" data-sval="1">0 (0x0000)</div>
+        </div>
+      `;
+
+      card.querySelector('[data-act="run"]').addEventListener('click', ()=> sicRunStart(i, card));
+      card.querySelector('[data-act="stop"]').addEventListener('click', ()=> sicStopRun(i));
+
+      const btns = Array.from(card.querySelectorAll('.posBtn'));
+      btns.forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const posIdx = parseInt(btn.dataset.pos,10);
+          sicStopRun(i);
+          await sicSendPos(i, card, SIC_POS[posIdx-1], posIdx);
+        });
+      });
+
+      const slider = card.querySelector('[data-slider="1"]');
+      const sval = card.querySelector('[data-sval="1"]');
+      slider.addEventListener('input', ()=>{
+        const v = parseInt(slider.value,10)||0;
+        sval.textContent = `${v} (0x${hex4(v)})`;
+      });
+      slider.addEventListener('change', async ()=>{
+        sicStopRun(i);
+        const v = parseInt(slider.value,10)||0;
+        await sicSendPos(i, card, Math.max(0, Math.min(SIC_MAX, v)), 0);
+      });
+
+      setSicUI(card, 0, 1);
+      row.appendChild(card);
+    }
+  }
+
+  // ====== J / Yarn / Stitch (tu código igual) ======
+  // (Dejo esta parte tal como venía: no afecta el testeo)
+  const regs = new Array(8).fill(0xFF);
+  const subId = (jIndex) => jIndex - 1;
+  const bitOf = (pinIndex) => pinIndex - 1;
+
+  function isOnJ(jIndex, pinIndex){
+    const r = regs[subId(jIndex)];
+    const b = bitOf(pinIndex);
+    return (((r >> b) & 1) === 0);
+  }
+  function setOnJ(jIndex, pinIndex, on){
+    const idx = subId(jIndex);
+    const b = bitOf(pinIndex);
+    if (on) regs[idx] &= ~(1 << b);
+    else    regs[idx] |=  (1 << b);
+    regs[idx] &= 0xFF;
+  }
+  function toggleJ(jIndex, pinIndex){ setOnJ(jIndex, pinIndex, !isOnJ(jIndex, pinIndex)); }
+
+  function buildLineJ(jIndex){
+    const sub = subId(jIndex).toString(16).toUpperCase();
+    const xx  = hex2(regs[subId(jIndex)]);
+    return `320 1D 0${sub} ${xx}`;
+  }
+  async function sendJ(jIndex){ return apiSendLine(buildLineJ(jIndex)); }
+
+  function updateJUI(jIndex){
+    const root = document.querySelector(`[data-j="${jIndex}"]`);
+    if(!root) return;
+    root.querySelector('.Jhex').textContent = `0x${hex2(regs[subId(jIndex)])}`;
+    for(let p=1;p<=8;p++){
+      const el = root.querySelector(`[data-pin="${p}"]`);
+      el.classList.toggle('on', isOnJ(jIndex, p));
+    }
+  }
+
+  function renderJ(){
+    const row = document.getElementById('rowJ');
+    row.innerHTML = '';
+    for(let j=1;j<=8;j++){
+      const box = document.createElement('div');
+      box.className = 'J';
+      box.dataset.j = String(j);
+
+      box.innerHTML = `
+        <div class="Jhead">
+          <div class="Jtitle">J${j}</div>
+          <div class="Jhex">0xFF</div>
+        </div>
+
+        <div class="Jbtns">
+          <button class="miniBtn" data-act="offall">OFF ALL</button>
+          <button class="miniBtn" data-act="onall">ON ALL</button>
+        </div>
+
+        <div class="Jbtns">
+          <button class="miniBtn run" data-act="run">RUN</button>
+          <button class="miniBtn stop" data-act="stop">STOP</button>
+        </div>
+
+        <div class="col">
+          ${Array.from({length:8}, (_,i)=>`
+            <div class="cell" data-pin="${i+1}">
+              <div class="n">${i+1}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      box.querySelector('[data-act="offall"]').addEventListener('click', async ()=>{
+        regs[subId(j)] = 0xFF; updateJUI(j); await sendJ(j);
+      });
+      box.querySelector('[data-act="onall"]').addEventListener('click', async ()=>{
+        regs[subId(j)] = 0x00; updateJUI(j); await sendJ(j);
+      });
+
+      box.querySelector('[data-act="run"]').addEventListener('click', async ()=>{ await apiCmdDo(`j_run_${j}`); });
+      box.querySelector('[data-act="stop"]').addEventListener('click', async ()=>{ await apiCmdDo(`j_stop_${j}`); });
+
+      for(let p=1;p<=8;p++){
+        const cell = box.querySelector(`[data-pin="${p}"]`);
+        cell.addEventListener('click', async ()=>{
+          toggleJ(j, p);
+          updateJUI(j);
+          await sendJ(j);
+        });
+      }
+
+      row.appendChild(box);
+      updateJUI(j);
+    }
+  }
+
+  const states = {
+    yarn1: new Array(8).fill(false),
+    yarn2: new Array(8).fill(false),
+    stitch1: new Array(4).fill(false),
+    stitch2: new Array(4).fill(false),
+    stitch3: new Array(4).fill(false),
+    stitch4: new Array(4).fill(false),
+  };
+
+  const CMD = {
+    yarn1: [
+      {off:"320 1E 18 00", on:"320 1E 18 01"},
+      {off:"320 1E 19 00", on:"320 1E 19 01"},
+      {off:"320 1E 1A 00", on:"320 1E 1A 01"},
+      {off:"320 1E 1B 00", on:"320 1E 1B 01"},
+      {off:"320 1E 1C 00", on:"320 1E 1C 01"},
+      {off:"320 1E 1D 00", on:"320 1E 1D 01"},
+      {off:"320 1E 1E 00", on:"320 1E 1E 01"},
+      {off:"320 1E 1F 00", on:"320 1E 1F 01"},
+    ],
+    yarn2: [
+      {off:"320 1E 24 00", on:"320 1E 24 01"},
+      {off:"320 1E 25 00", on:"320 1E 25 01"},
+      {off:"320 1E 26 00", on:"320 1E 26 01"},
+      {off:"320 1E 27 00", on:"320 1E 27 01"},
+      {off:"320 1E 20 00", on:"320 1E 20 01"},
+      {off:"320 1E 21 00", on:"320 1E 21 01"},
+      {off:"320 1E 22 00", on:"320 1E 22 01"},
+      {off:"320 1E 23 00", on:"320 1E 23 01"},
+    ],
+    stitch1: [
+      {off:"320 1E 00 00", on:"320 1E 00 01"},
+      {off:"320 1E 01 00", on:"320 1E 01 01"},
+      {off:"320 1E 02 00", on:"320 1E 02 01"},
+      {off:"320 1E 05 00", on:"320 1E 05 01"},
+    ],
+    stitch2: [
+      {off:"320 1E 06 00", on:"320 1E 06 01"},
+      {off:"320 1E 07 00", on:"320 1E 07 01"},
+      {off:"320 1E 08 00", on:"320 1E 08 01"},
+      {off:"320 1E 0B 00", on:"320 1E 0B 01"},
+    ],
+    stitch3: [
+      {off:"320 1E 0C 00", on:"320 1E 0C 01"},
+      {off:"320 1E 0D 00", on:"320 1E 0D 01"},
+      {off:"320 1E 0E 00", on:"320 1E 0E 01"},
+      {off:"320 1E 11 00", on:"320 1E 11 01"},
+    ],
+    stitch4: [
+      {off:"320 1E 12 00", on:"320 1E 12 01"},
+      {off:"320 1E 13 00", on:"320 1E 13 01"},
+      {off:"320 1E 14 00", on:"320 1E 14 01"},
+      {off:"320 1E 17 00", on:"320 1E 17 01"},
+    ],
+  };
+
+  function updateBlockUI(key){
+    const root = document.querySelector(`[data-blk="${key}"]`);
+    if(!root) return;
+    const arr = states[key];
+    for(let i=0;i<arr.length;i++){
+      const el = root.querySelector(`[data-pin="${i+1}"]`);
+      if(el) el.classList.toggle('on', !!arr[i]);
+    }
+  }
+
+  async function setBlockPin(key, pin1based, on){
+    const i = pin1based - 1;
+    states[key][i] = on;
+    updateBlockUI(key);
+    const line = on ? CMD[key][i].on : CMD[key][i].off;
+    await apiSendLine(line);
+  }
+
+  async function blockAll(key, on){
+    for(let i=1;i<=states[key].length;i++){
+      await setBlockPin(key, i, on);
+    }
+  }
+
+  function renderBlocks(containerId, blocks){
+    const row = document.getElementById(containerId);
+    row.innerHTML = '';
+
+    for(const b of blocks){
+      const el = document.createElement('div');
+      el.className = 'blk';
+      el.dataset.blk = b.key;
+
+      el.innerHTML = `
+        <div class="blkHead">
+          <div class="blkTitle">${b.title}</div>
+          <div class="blkSub">${b.sub}</div>
+        </div>
+
+        <div class="blkActions">
+          <button data-act="offall">OFF ALL</button>
+          <button data-act="onall">ON ALL</button>
+          <button class="miniBtn run" data-act="run">RUN</button>
+          <button class="miniBtn stop" data-act="stop">STOP</button>
+        </div>
+
+        <div class="gridPins">
+          ${Array.from({length:b.count}, (_,i)=>`
+            <div class="pinBtn" data-pin="${i+1}">${i+1}</div>
+          `).join('')}
+        </div>
+      `;
+
+      el.querySelector('[data-act="offall"]').addEventListener('click', async ()=>{ await blockAll(b.key, false); });
+      el.querySelector('[data-act="onall"]').addEventListener('click', async ()=>{ await blockAll(b.key, true); });
+
+      el.querySelector('[data-act="run"]').addEventListener('click', async ()=>{
+        if (b.key === 'yarn1') await apiCmdDo('y1_run');
+        else if (b.key === 'yarn2') await apiCmdDo('y2_run');
+        else if (b.key.startsWith('stitch')) {
+          const n = parseInt(b.key.replace('stitch',''),10);
+          await apiCmdDo(`s_run_${n}`);
+        }
+      });
+      el.querySelector('[data-act="stop"]').addEventListener('click', async ()=>{
+        if (b.key === 'yarn1') await apiCmdDo('y1_stop');
+        else if (b.key === 'yarn2') await apiCmdDo('y2_stop');
+        else if (b.key.startsWith('stitch')) {
+          const n = parseInt(b.key.replace('stitch',''),10);
+          await apiCmdDo(`s_stop_${n}`);
+        }
+      });
+
+      for(let i=1;i<=b.count;i++){
+        const btn = el.querySelector(`[data-pin="${i}"]`);
+        btn.addEventListener('click', async ()=>{
+          const now = !!states[b.key][i-1];
+          await setBlockPin(b.key, i, !now);
+        });
+      }
+
+      row.appendChild(el);
+      updateBlockUI(b.key);
+    }
+  }
+
+  // TOP buttons
+  document.getElementById('btnInit').addEventListener('click', async ()=>{ await apiCmdDo('init'); });
+
+  document.getElementById('btnAllOff').addEventListener('click', async ()=>{
+    for(let i=0;i<8;i++) regs[i]=0xFF;
+    for(let j=1;j<=8;j++) updateJUI(j);
+    for(let j=1;j<=8;j++) await sendJ(j);
+    for (const k of ['yarn1','yarn2','stitch1','stitch2','stitch3','stitch4']){
+      await blockAll(k, false);
+    }
+  });
+
+  document.getElementById('btnAllOn').addEventListener('click', async ()=>{
+    for(let i=0;i<8;i++) regs[i]=0x00;
+    for(let j=1;j<=8;j++) updateJUI(j);
+    for(let j=1;j<=8;j++) await sendJ(j);
+    for (const k of ['yarn1','yarn2','stitch1','stitch2','stitch3','stitch4']){
+      await blockAll(k, true);
+    }
+  });
+
+  document.getElementById('btnStatus').addEventListener('click', async ()=>{
+    try{
+      traceAdd('TX', 'GET /status');
+      const r = await fetch(`${baseUrl()}/status`, { cache:"no-store" });
+      const txt = await r.text();
+      log(`STATUS:\n${txt}`);
+      try{ updateTestBox(JSON.parse(txt)); }catch(e){}
+    }catch(e){
+      log(`No responde /status: ${e}`);
+    }
+  });
+
+  document.getElementById('btnRunAllJ').addEventListener('click', async ()=>{ await apiCmdDo('j_run_all'); });
+  document.getElementById('btnStopAllJ').addEventListener('click', async ()=>{ await apiCmdDo('j_stop_all'); });
+  document.getElementById('btnRunAllY').addEventListener('click', async ()=>{ await apiCmdDo('y_run_all'); });
+  document.getElementById('btnStopAllY').addEventListener('click', async ()=>{ await apiCmdDo('y_stop_all'); });
+  document.getElementById('btnRunAllS').addEventListener('click', async ()=>{ await apiCmdDo('s_run_all'); });
+  document.getElementById('btnStopAllS').addEventListener('click', async ()=>{ await apiCmdDo('s_stop_all'); });
+
+  // Init render
+  renderDEN();
+  renderSIC();
+  renderJ();
+
+  renderBlocks('rowYarn', [
+    {key:'yarn1', title:'Yarn 1', sub:'320 1E 18..1F', count:8},
+    {key:'yarn2', title:'Yarn 2', sub:'320 1E 24..27 & 20..23', count:8},
+  ]);
+
+  renderBlocks('rowStitch', [
+    {key:'stitch1', title:'Stitch 1', sub:'320 1E 00,01,02,05', count:4},
+    {key:'stitch2', title:'Stitch 2', sub:'320 1E 06,07,08,0B', count:4},
+    {key:'stitch3', title:'Stitch 3', sub:'320 1E 0C,0D,0E,11', count:4},
+    {key:'stitch4', title:'Stitch 4', sub:'320 1E 12,13,14,17', count:4},
+  ]);
+
+  window.addEventListener('beforeunload', ()=>{
+    for (let m=0;m<8;m++) denStopAllRuns(m);
+    for (let i=0;i<2;i++) sicStopRun(i);
+  });
+</script>
+</body>
+</html>

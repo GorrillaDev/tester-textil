@@ -10,6 +10,17 @@
 *.userosscache
 *.sln.docstates
 *.env
+*.csproj.user
+
+# Acuratex project specific
+firmware_esp32/build/
+app_windows/**/bin/
+app_windows/**/obj/
+firmware_esp32/.idf/
+firmware_esp32/sdkconfig.old
+**/publish/
+drivers/**/AcuratexTest.pvk
+drivers/**/AcuratexTest.cer
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

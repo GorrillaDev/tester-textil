@@ -1,0 +1,7 @@
+{
+  "idf.currentSetup": "esp-idf-20641670323144cfb53eaef96014adb2",
+  "idf.portWin": "COM7",
+  "idf.monitorPort": "COM7",
+  "idf.flashType": "UART",
+  "idf.buildPathWin": "${workspaceFolder}\\build"
+}

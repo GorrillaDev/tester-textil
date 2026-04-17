@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ESP-IDF Build",
+      "type": "process",
+      "command": "C:\\Users\\Users\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Espressif.EIM-CLI_Microsoft.Winget.Source_8wekyb3d8bbwe\\eim.exe",
+      "args": [
+        "run",
+        "idf.py build",
+        "v6.0"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP-IDF Flash COM7",
+      "type": "process",
+      "command": "C:\\Users\\Users\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Espressif.EIM-CLI_Microsoft.Winget.Source_8wekyb3d8bbwe\\eim.exe",
+      "args": [
+        "run",
+        "idf.py -p COM7 flash",
+        "v6.0"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP-IDF Monitor COM7",
+      "type": "process",
+      "command": "C:\\Users\\Users\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Espressif.EIM-CLI_Microsoft.Winget.Source_8wekyb3d8bbwe\\eim.exe",
+      "args": [
+        "run",
+        "idf.py -p COM7 monitor",
+        "v6.0"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ESP-IDF Build Flash Monitor COM7",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "ESP-IDF Build",
+        "ESP-IDF Flash COM7",
+        "ESP-IDF Monitor COM7"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
