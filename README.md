@@ -14,3 +14,17 @@ Orden recomendado al retomar:
 1. leer `codex-context/README_REANUDAR.md`
 2. leer `codex-context/RECUERDO_CODEX_WEB.txt`
 3. pegar o reutilizar `codex-context/PROMPT_CODEX_WEB.txt`
+
+## Estructura base del proyecto
+
+Quedo creada esta estructura para migrar el proyecto real a este repo:
+
+- `firmware_esp32`
+- `app_windows`
+- `referencias`
+- `drivers`
+
+Guias:
+
+- `MIGRAR_PROYECTO_AQUI.md`
+- `COMO_USAR_EN_CODEX_WEB.md`
