@@ -29,6 +29,7 @@
 #include "tinyusb_default_config.h"
 #include "tusb.h"
 #include "class/vendor/vendor_device.h"
+#include "line_codec.h"
 
 #define APP_WIFI_SSID                        "ACURATEX_NET"
 #define APP_WIFI_PASS                        "acuratex1"
@@ -55,6 +56,7 @@
 #define APP_USB_BULK_OUT_EP                  0x01
 #define APP_USB_BULK_IN_EP                   0x81
 #define APP_USB_BULK_EP_SIZE                 64
+#define APP_USB_TX_RETRY_COUNT               5
 #define APP_USB_INTERFACE_GUID               "{D7761D50-5F1B-4D33-95F2-733B0E5F2EED}"
 #define APP_USB_CONFIG_TOTAL_LEN             (TUD_CONFIG_DESC_LEN + TUD_VENDOR_DESC_LEN)
 #define APP_USB_BOS_TOTAL_LEN                (TUD_BOS_DESC_LEN + TUD_BOS_MICROSOFT_OS_DESC_LEN)
@@ -114,6 +116,8 @@ static bool s_usb_mounted = false;
 static char s_usb_rx_line[APP_LINE_BUFFER_SIZE] = {0};
 static size_t s_usb_rx_line_len = 0;
 static char s_usb_serial_number[17] = "000000000000";
+static uint32_t s_usb_rx_packets = 0;
+static uint32_t s_usb_tx_packets = 0;
 
 static const tusb_desc_device_t s_usb_device_descriptor = {
     .bLength = sizeof(tusb_desc_device_t),
@@ -287,97 +291,6 @@ static esp_err_t app_can_send_standard(app_can_bus_t bus, uint32_t id, const uin
     return ESP_OK;
 }
 
-static void app_trim_line(char *line)
-{
-    size_t len;
-
-    if (line == NULL) {
-        return;
-    }
-
-    len = strlen(line);
-    while (len > 0 && isspace((unsigned char)line[len - 1])) {
-        line[--len] = '\0';
-    }
-
-    if (len == 0) {
-        return;
-    }
-
-    char *start = line;
-    while (*start && isspace((unsigned char)*start)) {
-        start++;
-    }
-
-    if (start != line) {
-        memmove(line, start, strlen(start) + 1);
-    }
-}
-
-static bool app_parse_hex_byte(const char *token, uint8_t *out)
-{
-    char *endptr = NULL;
-    long value;
-
-    if (token == NULL || out == NULL) {
-        return false;
-    }
-
-    value = strtol(token, &endptr, 16);
-    if (endptr == token || *endptr != '\0' || value < 0 || value > 0xFF) {
-        return false;
-    }
-
-    *out = (uint8_t)value;
-    return true;
-}
-
-static bool app_parse_hex_id(const char *token, uint32_t *out)
-{
-    char *endptr = NULL;
-    unsigned long value;
-
-    if (token == NULL || out == NULL) {
-        return false;
-    }
-
-    value = strtoul(token, &endptr, 16);
-    if (endptr == token || *endptr != '\0' || value > TWAI_STD_ID_MASK) {
-        return false;
-    }
-
-    *out = (uint32_t)value;
-    return true;
-}
-
-static bool app_parse_frame_line(const char *line, uint32_t *id, uint8_t *data, size_t *len)
-{
-    char buffer[APP_LINE_BUFFER_SIZE];
-    char *saveptr = NULL;
-    char *token;
-    size_t count = 0;
-
-    if (line == NULL || id == NULL || data == NULL || len == NULL) {
-        return false;
-    }
-
-    strlcpy(buffer, line, sizeof(buffer));
-    token = strtok_r(buffer, " ", &saveptr);
-    if (token == NULL || !app_parse_hex_id(token, id)) {
-        return false;
-    }
-
-    while ((token = strtok_r(NULL, " ", &saveptr)) != NULL) {
-        if (count >= TWAI_FRAME_MAX_LEN || !app_parse_hex_byte(token, &data[count])) {
-            return false;
-        }
-        count++;
-    }
-
-    *len = count;
-    return true;
-}
-
 static esp_err_t app_reply_stdio(const char *line, void *ctx)
 {
     (void)ctx;
@@ -391,14 +304,44 @@ static esp_err_t app_reply_usb_vendor(const char *line, void *ctx)
     (void)ctx;
     char buffer[APP_LINE_BUFFER_SIZE + 2];
     size_t len = (size_t)snprintf(buffer, sizeof(buffer), "%s\n", line);
+    size_t offset = 0;
+    uint32_t retries = 0;
 
     ESP_RETURN_ON_FALSE(s_usb_mounted, ESP_ERR_INVALID_STATE, TAG, "USB nativo no montado");
+    ESP_RETURN_ON_FALSE(tud_mounted(), ESP_ERR_INVALID_STATE, TAG, "USB stack no montado (TinyUSB)");
 
-    if (tud_vendor_n_write(APP_USB_VENDOR_ITF, buffer, len) != len) {
-        return ESP_FAIL;
+    while (offset < len) {
+        uint32_t available = tud_vendor_n_write_available(APP_USB_VENDOR_ITF);
+        if (available == 0) {
+            if (retries++ >= APP_USB_TX_RETRY_COUNT) {
+                ESP_LOGW(TAG, "USB TX sin espacio (len=%u, sent=%u)", (unsigned)len, (unsigned)offset);
+                return ESP_ERR_TIMEOUT;
+            }
+            vTaskDelay(pdMS_TO_TICKS(1));
+            continue;
+        }
+
+        uint32_t remaining = (uint32_t)(len - offset);
+        uint32_t chunk = (available < remaining) ? available : remaining;
+        uint32_t written = tud_vendor_n_write(APP_USB_VENDOR_ITF, &buffer[offset], chunk);
+        if (written == 0) {
+            if (retries++ >= APP_USB_TX_RETRY_COUNT) {
+                ESP_LOGW(TAG, "USB TX write=0 (len=%u, sent=%u)", (unsigned)len, (unsigned)offset);
+                return ESP_FAIL;
+            }
+            vTaskDelay(pdMS_TO_TICKS(1));
+            continue;
+        }
+
+        offset += written;
+        retries = 0;
     }
 
     tud_vendor_n_write_flush(APP_USB_VENDOR_ITF);
+    s_usb_tx_packets++;
+    if ((s_usb_tx_packets % 16U) == 0U) {
+        ESP_LOGI(TAG, "USB TX acumulado=%lu", (unsigned long)s_usb_tx_packets);
+    }
     return ESP_OK;
 }
 
@@ -440,7 +383,7 @@ static esp_err_t app_process_frame_command(const char *line, app_reply_fn_t repl
     char response[APP_LINE_BUFFER_SIZE];
     esp_err_t err;
 
-    if (!app_parse_frame_line(line, &id, data, &len)) {
+    if (!app_parse_frame_line(line, &id, data, &len, TWAI_FRAME_MAX_LEN, TWAI_STD_ID_MASK)) {
         return reply("ERR frame invalido", ctx);
     }
 
@@ -893,12 +836,33 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, tusb_control_requ
 }
 void tud_vendor_rx_cb(uint8_t itf, uint8_t const *buffer, uint16_t bufsize)
 {
-    (void)itf;
-    app_usb_process_rx_bytes(buffer, bufsize);
+    uint8_t tmp[APP_USB_BULK_EP_SIZE];
+    uint32_t pending = tud_vendor_n_available(itf);
+
+    if (buffer != NULL && bufsize > 0) {
+        app_usb_process_rx_bytes(buffer, bufsize);
+        s_usb_rx_packets++;
+        if ((s_usb_rx_packets % 16U) == 0U) {
+            ESP_LOGI(TAG, "USB RX acumulado=%lu (pending=%lu)",
+                     (unsigned long)s_usb_rx_packets, (unsigned long)pending);
+        }
+    }
+
+    while (pending > 0) {
+        uint32_t to_read = (pending > sizeof(tmp)) ? sizeof(tmp) : pending;
+        uint32_t read = tud_vendor_n_read(itf, tmp, to_read);
+        if (read == 0) {
+            break;
+        }
+
+        app_usb_process_rx_bytes(tmp, read);
+        s_usb_rx_packets++;
+        pending = tud_vendor_n_available(itf);
+    }
 
 #if CFG_TUD_VENDOR_RX_BUFSIZE > 0
     // Libera el buffer RX interno de TinyUSB para aceptar el siguiente paquete OUT.
-    tud_vendor_n_read_flush(APP_USB_VENDOR_ITF);
+    tud_vendor_n_read_flush(itf);
 #endif
 }
 
