@@ -33,3 +33,26 @@ Por eso esta fase deja el firmware en C# con contratos listos para:
 - `Composition/`: wiring manual de dependencias.
 - `Program.cs`: punto de entrada.
 
+## Compilar (solucion implementada)
+
+Ejecuta **siempre** este comando desde la raíz del repo:
+
+```bash
+bash firmware_nanoframework/build_firmware_cs.sh
+```
+
+Este script:
+
+1. restaura herramientas locales (`nanoff`),
+2. restaura paquetes del proyecto,
+3. compila en `Release`.
+
+## Flashear/Deploy
+
+Para desplegar a puerto serie:
+
+```bash
+bash firmware_nanoframework/flash_firmware_cs.sh COM7
+```
+
+> Cambia `COM7` por tu puerto real.
