@@ -10,7 +10,7 @@ static class Program
     [STAThread]
     static void Main()
     {
-        ApplicationConfiguration.Initialize();
-        Application.Run(new MainForm());
+        System.Windows.Forms.ApplicationConfiguration.Initialize();
+        System.Windows.Forms.Application.Run(new MainForm());
     }
 }

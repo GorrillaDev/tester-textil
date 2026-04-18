@@ -2,7 +2,7 @@ namespace AcuratexControlApp.Presentation;
 
 partial class MainForm
 {
-    private System.ComponentModel.IContainer? components = null;
+    private System.ComponentModel.IContainer components = null!;
     private ComboBox cmbMode;
     private GroupBox grpUsb;
     private Button btnRefreshPorts;
