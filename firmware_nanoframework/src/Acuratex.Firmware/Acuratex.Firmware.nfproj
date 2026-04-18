@@ -1,0 +1,9 @@
+<Project Sdk="nanoFramework.NET.Sdk/1.0.0">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netnano1.0</TargetFramework>
+    <AssemblyName>Acuratex.Firmware</AssemblyName>
+    <RootNamespace>Acuratex.Firmware</RootNamespace>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+</Project>

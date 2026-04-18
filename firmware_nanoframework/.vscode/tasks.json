@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "nanofw: build firmware csharp",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "${workspaceFolder}/firmware_nanoframework/build_firmware_cs.sh"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "nanofw: flash firmware csharp",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "${workspaceFolder}/firmware_nanoframework/flash_firmware_cs.sh",
+        "COM7"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
