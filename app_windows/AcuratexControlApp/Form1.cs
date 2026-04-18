@@ -2,7 +2,7 @@ namespace AcuratexControlApp;
 
 public partial class Form1 : Form
 {
-    private readonly ConnectionController _connection = new();
+    private readonly IConnectionController _connection = new ConnectionController();
 
     public Form1()
     {

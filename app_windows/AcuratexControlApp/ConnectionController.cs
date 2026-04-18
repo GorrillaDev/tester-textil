@@ -1,8 +1,19 @@
 namespace AcuratexControlApp;
 
-public sealed class ConnectionController : IDisposable
+public sealed class ConnectionController : IConnectionController
 {
     private IControllerTransport? _transport;
+    private readonly ControllerTransportFactory _transportFactory;
+
+    public ConnectionController()
+        : this(new ControllerTransportFactory())
+    {
+    }
+
+    public ConnectionController(ControllerTransportFactory transportFactory)
+    {
+        _transportFactory = transportFactory;
+    }
 
     public bool IsConnected => _transport?.IsConnected == true;
 
@@ -13,7 +24,7 @@ public sealed class ConnectionController : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         await DisconnectAsync().ConfigureAwait(false);
 
-        _transport = CreateTransport(mode, device, host, tcpPort);
+        _transport = _transportFactory.Create(mode, device, host, tcpPort);
         _transport.LineReceived += HandleLineReceived;
         await _transport.ConnectAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -47,27 +58,6 @@ public sealed class ConnectionController : IDisposable
     public void Dispose()
     {
         DisconnectAsync().GetAwaiter().GetResult();
-    }
-
-    private static IControllerTransport CreateTransport(ConnectionMode mode, UsbVendorDeviceInfo? device, string host, int tcpPort)
-    {
-        if (mode == ConnectionMode.Usb) {
-            if (device == null) {
-                throw new InvalidOperationException("Selecciona un dispositivo USB Acuratex.");
-            }
-
-            return new WinUsbControllerTransport(device.DevicePath);
-        }
-
-        if (string.IsNullOrWhiteSpace(host)) {
-            throw new InvalidOperationException("Host invalido.");
-        }
-
-        if (tcpPort <= 0) {
-            throw new InvalidOperationException("Puerto TCP invalido.");
-        }
-
-        return new TcpControllerTransport(host, tcpPort);
     }
 
     private void HandleLineReceived(string line)
